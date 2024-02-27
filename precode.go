@@ -17,16 +17,16 @@ func Generator(ctx context.Context, ch chan<- int64, fn func(int64)) {
 	// 1. Функция Generator
 	defer close(ch)
 
-	var value atomic.Int64
+	var value int64
 
 	for {
 		select {
 		case <-ctx.Done():
 			return
-		case ch <- value.Load():
-			fn(value.Load())
-			value.Add(1)
-
+		default:
+			value++
+			ch <- value
+			fn(value)
 		}
 	}
 }
@@ -58,12 +58,9 @@ func main() {
 	var inputCount atomic.Int64 // количество сгенерированных чисел
 
 	// генерируем числа, считая параллельно их количество и сумму
-	//var mu sync.Mutex
 	go Generator(ctx, chIn, func(i int64) {
-		//mu.Lock()
 		inputSum.Add(i)
 		inputCount.Add(1)
-		//mu.Unlock()
 	})
 
 	const NumOut = 5 // количество обрабатывающих горутин и каналов
@@ -90,7 +87,7 @@ func main() {
 			for {
 				num, ok := <-in
 				if !ok {
-					break
+					return
 				}
 
 				amounts[i]++
